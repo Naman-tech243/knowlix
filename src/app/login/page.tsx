@@ -15,9 +15,24 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [currentTab, setCurrentTab] = useState('signin'); // 'signin' or 'signup'
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
-  const { signIn, signUp, loading, checkEmailExists } = useAuth(); // Destructure checkEmailExists
+  const { signIn, signUp, loading, checkEmailExists, resetPassword } = useAuth(); // Add resetPassword
   const router = useRouter();
+  const [isResetting, setIsResetting] = useState(false); // Add reset loading state
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email address to reset your password.");
+      return;
+    }
+    setIsResetting(true);
+    const { success, error } = await resetPassword(email);
+    setIsResetting(false);
+    if (success) {
+      toast.success('Password reset email sent. Please check your inbox.');
+    } else {
+      toast.error(error || 'Failed to send reset email.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,14 +40,7 @@ export default function LoginPage() {
     if (loading) return; // Prevent multiple submissions
 
     if (currentTab === 'signup') {
-      // Proactively check if email already exists
-      const emailAlreadyExists = await checkEmailExists(email);
-      if (emailAlreadyExists) {
-        toast.error("An account with this email already exists. Please log in or use a different email to continue.");
-        return;
-      }
-
-      const { success, error } = await signUp(email, password, selectedRole);
+      const { success, error } = await signUp(email, password, 'student');
       if (success) {
         toast.success('Account created! Please check your email to verify and then sign in.');
         setCurrentTab('signin');
@@ -75,13 +83,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {currentTab === 'signup' && (
             <div className="mb-4">
-              <Label htmlFor="role">I am a:</Label>
-              <Tabs value={selectedRole || 'student'} onValueChange={(value) => setSelectedRole(value as UserRole)} className="mt-2">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="student">Student</TabsTrigger>
-                  <TabsTrigger value="admin">Admin</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <Label>Role: Student</Label>
             </div>
           )}
 
@@ -98,14 +100,26 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              {currentTab === 'signin' && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm text-primary hover:underline"
+                  disabled={isResetting}
+                >
+                  {isResetting ? 'Sending...' : 'Forgot password?'}
+                </button>
+              )}
+            </div>
             <Input
               id="password"
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              required={currentTab === 'signup'}
             />
           </div>
 

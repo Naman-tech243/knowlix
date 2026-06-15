@@ -61,7 +61,8 @@ interface AuthContextType {
     emailExists?: boolean;
   }>;
   signOut: () => Promise<{ success: boolean; error: string | null }>;
-  checkEmailExists: (email: string) => Promise<boolean>; // <-- new utility
+  checkEmailExists: (email: string) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -256,7 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (
     email: string,
     password: string,
-    selectedRole: UserRole,
+    _selectedRole: UserRole, // Ignore input
     name?: string,
     course?: string,
     semester?: string,
@@ -264,7 +265,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { role: selectedRole, name, course, semester } },
+      options: { data: { role: 'student', name, course, semester } }, // Force 'student'
     });
 
     if (error) {
@@ -309,6 +310,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: true, error: null };
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/update-password`,
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true, error: null };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -322,6 +331,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         signOut,
         checkEmailExists,
+        resetPassword,
       }}
     >
       {children}
